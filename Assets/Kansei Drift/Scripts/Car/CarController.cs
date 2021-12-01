@@ -15,7 +15,8 @@ public class CarController : MonoBehaviour
     private float currentSteerAngle;
 
     private Rigidbody rb = new Rigidbody();
-    
+    private float velocity = 0;
+
     public Text motor;
     public Text brake;
 
@@ -125,10 +126,24 @@ public class CarController : MonoBehaviour
 
     private void ApplyBreaking()
     {
-        if(isHandbraking)
+        WheelFrictionCurve forwardFriction = rearLeftCollider.forwardFriction;
+        WheelFrictionCurve sidewaysFriction = rearLeftCollider.sidewaysFriction;
+
+        if (isHandbraking)
         {
             rearLeftCollider.brakeTorque = currentBrakeForce * 1000;
             rearRightCollider.brakeTorque = currentBrakeForce * 1000;
+            
+            float stiffnessFriction = Mathf.SmoothDamp(
+                rearLeftCollider.forwardFriction.stiffness, 0.15f, ref velocity, Time.deltaTime * 1.2f);
+
+            forwardFriction.stiffness = stiffnessFriction;
+            sidewaysFriction.stiffness = stiffnessFriction;
+
+            rearLeftCollider.forwardFriction = forwardFriction;
+            rearRightCollider.forwardFriction = forwardFriction;
+            rearLeftCollider.sidewaysFriction = sidewaysFriction;
+            rearRightCollider.sidewaysFriction = sidewaysFriction;
         }
         else
         {
@@ -136,6 +151,16 @@ public class CarController : MonoBehaviour
             frontRightCollider.brakeTorque = currentBrakeForce;
             rearLeftCollider.brakeTorque = currentBrakeForce;
             rearRightCollider.brakeTorque = currentBrakeForce;
+
+            forwardFriction.stiffness = Mathf.SmoothDamp(
+                rearLeftCollider.forwardFriction.stiffness, 0.8f, ref velocity, Time.deltaTime * 12f);
+            sidewaysFriction.stiffness = Mathf.SmoothDamp(
+                rearLeftCollider.sidewaysFriction.stiffness, 0.45f, ref velocity, Time.deltaTime * 2.5f);
+
+            rearLeftCollider.forwardFriction = forwardFriction;
+            rearRightCollider.forwardFriction = forwardFriction;
+            rearLeftCollider.sidewaysFriction = sidewaysFriction;
+            rearRightCollider.sidewaysFriction = sidewaysFriction;
         }
     }
 
