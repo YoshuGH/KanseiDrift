@@ -731,11 +731,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b24c8c277e55f24fa9625f11f07dc22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  offset: {x: 0, y: 3.5, z: -8}
+  offset: {x: 0, y: 2.75, z: -7}
   target: {fileID: 8246596043444256391}
-  smoothTime: 0.5
+  smoothTime: 0.3
   maxTranslateSpeed: 200
-  rotationSpeed: 50
+  rotationSpeed: 10
 --- !u!1 &1661353771
 GameObject:
   m_ObjectHideFlags: 0
@@ -1037,9 +1037,21 @@ PrefabInstance:
       propertyPath: motor
       value: 
       objectReference: {fileID: 2139237040}
+    - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
+      propertyPath: driveSetup
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
+      propertyPath: motorForce
+      value: 803
+      objectReference: {fileID: 0}
+    - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
+      propertyPath: maxSteeringAngle
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 4897181084605287198, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_ForwardFriction.m_Stiffness
-      value: 0.8
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4897181084605287198, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_SidewaysFriction.m_Stiffness
@@ -1047,7 +1059,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4897181084613102659, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_ForwardFriction.m_Stiffness
-      value: 0.8
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4897181084613102659, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_SidewaysFriction.m_Stiffness
@@ -1055,7 +1067,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4897181085670069737, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_ForwardFriction.m_Stiffness
-      value: 0.8
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4897181085670069737, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_SidewaysFriction.m_Stiffness
@@ -1063,7 +1075,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4897181085838250416, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_ForwardFriction.m_Stiffness
-      value: 0.8
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4897181085838250416, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_SidewaysFriction.m_Stiffness
