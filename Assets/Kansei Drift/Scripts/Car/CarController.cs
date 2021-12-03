@@ -21,9 +21,12 @@ public class CarController : MonoBehaviour
     private float engineRPM;
     private float gForce = 0;
     private float currentVelocity;
-    private float lastFrameVelocity;    
+    private float lastFrameVelocity;
+    private int colIterator, checkpoints;
+    private bool disableControls = false;
 
     private Rigidbody rb = new Rigidbody();
+    [SerializeField] private Collider colDectector;
     private PlayerInput playerInput;
     private InputAction moveAction, brakeAction, handbrakeAction, upShift, downShift;
     private WheelFrictionCurve[] sidewaysFriction = new WheelFrictionCurve[4];
@@ -69,6 +72,11 @@ public class CarController : MonoBehaviour
         get { return kmph; }
     }
 
+    public bool DisableControls
+    {
+        set { disableControls = value; }
+    }
+
     public float EngineRPM
     {
         get { return engineRPM; }
@@ -97,6 +105,11 @@ public class CarController : MonoBehaviour
     public float VerticalInput
     {
         get { return verticalInput; }
+    }
+
+    public int Checkpoints
+    {
+        get { return checkpoints; }
     }
 
     private void Awake()
@@ -213,6 +226,18 @@ public class CarController : MonoBehaviour
         Gizmos.DrawLine(FRWheel, FLWheel);
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.CompareTag("VictoryColliders"))
+        {
+            colIterator++;
+            if(colIterator == 5)
+            {
+                checkpoints++;
+            }
+        }
+    }
+
     private void Update()
     {
         GetInput();
@@ -247,23 +272,25 @@ public class CarController : MonoBehaviour
 
     private void GetInput()
     {
-        Vector2 move = moveAction.ReadValue<Vector2>();
-        horizontalInput = move.x;
-        verticalInput = move.y;
-
-        isBraking = brakeAction.ReadValue<float>() == 1 ? true : false;
-        isHandbraking = handbrakeAction.ReadValue<float>() == 1 ? true : false;
-
-        if(upShift.triggered)
+        if(!disableControls)
         {
-            currentGear++;
-        }
+            Vector2 move = moveAction.ReadValue<Vector2>();
+            horizontalInput = move.x;
+            verticalInput = move.y;
 
-        if (downShift.triggered)
-        {
-            currentGear--;
-        }
+            isBraking = brakeAction.ReadValue<float>() == 1 ? true : false;
+            isHandbraking = handbrakeAction.ReadValue<float>() == 1 ? true : false;
 
+            if (upShift.triggered)
+            {
+                currentGear++;
+            }
+
+            if (downShift.triggered)
+            {
+                currentGear--;
+            }
+        }
     }
 
     private void HandleMotor()
@@ -283,10 +310,10 @@ public class CarController : MonoBehaviour
                 break;
             case (DriveSetup)2:
                 motorForceEachWheel = motorTorque / 4;
-                frontLeftCollider.motorTorque = motorForceEachWheel * 1.5f;
-                frontRightCollider.motorTorque = motorForceEachWheel * 1.5f;
-                rearLeftCollider.motorTorque = motorForceEachWheel * 1.5f;
-                rearRightCollider.motorTorque = motorForceEachWheel * 1.5f;
+                frontLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
+                frontRightCollider.motorTorque = motorForceEachWheel * 1.25f;
+                rearLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
+                rearRightCollider.motorTorque = motorForceEachWheel * 1.25f;
                 break;
             default:
                 frontLeftCollider.motorTorque = motorForceEachWheel;

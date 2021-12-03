@@ -5,7 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
+  - enabled: 0
+    path: 
+    guid: 00000000000000000000000000000000
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: d1c3109bdb54ad54c8a2b2838528e640
+    path: Assets/Kansei Drift/Scenes/Menu.unity
+    guid: 9025a5a2f57413f4fbb71426c5049bc6
+  - enabled: 1
+    path: Assets/Kansei Drift/Scenes/Level1.unity
+    guid: 5a897fe26df0e5d4990afb522f7dbc2b
   m_configObjects: {}
