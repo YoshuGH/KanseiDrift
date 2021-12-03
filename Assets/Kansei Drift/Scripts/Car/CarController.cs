@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class CarController : MonoBehaviour
@@ -10,50 +11,102 @@ public class CarController : MonoBehaviour
     private const string VERTICAL = "Vertical";
     private float horizontalInput;
     private float verticalInput;
-    private bool isBraking, isHandbraking, updateCenterOfMass = false;
+    private bool isBraking, isHandbraking, updateCenterOfMass = false, reverse = false;
     private float currentBrakeForce;
     private float currentSteerAngle;
-    private float velocity = 0;
     private float wheelBase = 2.55f;
     private float wheelTrack = 1.5f;
     private float kmph;
+    private int currentGear = 0;
+    private float engineRPM;
+    private float gForce = 0;
+    private float currentVelocity;
+    private float lastFrameVelocity;    
 
     private Rigidbody rb = new Rigidbody();
-
-    public Text motor;
-    public Text brake;
+    private PlayerInput playerInput;
+    private InputAction moveAction, brakeAction, handbrakeAction, upShift, downShift;
+    private WheelFrictionCurve[] sidewaysFriction = new WheelFrictionCurve[4];
 
     private enum DriveSetup { FWD, RWD, AWD }
+    private enum GearBox { automatic, manual }
 
     [Header("Car Setup"),Space]
     [SerializeField] private DriveSetup driveSetup;
     [SerializeField, Tooltip("The Value is express in N/m")] 
-    private float motorForce;
+    private float motorTorque;
+    [SerializeField] private AnimationCurve torqueCurve;
+    [SerializeField] GearBox gearbox;
+    [SerializeField] private float maxRPM = 5500, minRPM = 2500;
+    [SerializeField] private float[] gearsRatio;
+    [SerializeField] private float finalDriveAxleRatio = 3.74f;
     [SerializeField, Tooltip("The Value is express in N/m")] 
     private float brakeForce;
     [SerializeField] private float maxSteeringAngle;
+    [SerializeField] private float sidewaysFrictionStiffness = 0.775f;
     [SerializeField, Tooltip("The Value is express in N/m")] 
     private float frontAntirollStiffness = 5000.0f;
     [SerializeField, Tooltip("The Value is express in N/m")] 
     private float rearAntirollStiffness = 5000.0f;
     [SerializeField, Tooltip("Is for relocate the center of mass relative to the original")] 
     private Vector3 centerOfMassOffset;
+    [SerializeField] private float downForceValue = 50f;
 
     [Header("Wheel Colliders")]
-    [SerializeField, Space, Space] private WheelCollider frontLeftCollider;
-    [SerializeField] private WheelCollider frontRightCollider;
-    [SerializeField] private WheelCollider rearLeftCollider;
-    [SerializeField] private WheelCollider rearRightCollider;
+    [SerializeField, Space, Space] public WheelCollider frontLeftCollider;
+    [SerializeField] public WheelCollider frontRightCollider;
+    [SerializeField] public WheelCollider rearLeftCollider;
+    [SerializeField] public WheelCollider rearRightCollider;
 
     [Header("Wheel Transform Models")]
-    [SerializeField, Space, Space] private Transform frontLeftTransform;
-    [SerializeField] private Transform frontRightTransform;
-    [SerializeField] private Transform rearLeftTransform;
-    [SerializeField] private Transform rearRightTransform;
+    [SerializeField, Space, Space] public Transform frontLeftTransform;
+    [SerializeField] public Transform frontRightTransform;
+    [SerializeField] public Transform rearLeftTransform;
+    [SerializeField] public Transform rearRightTransform;
 
     public float KMPH
     {
         get { return kmph; }
+    }
+
+    public float EngineRPM
+    {
+        get { return engineRPM; }
+    }
+
+    public float MaxRPM
+    {
+        get { return maxRPM; }
+    }
+
+    public int Gear
+    {
+        get { return currentGear; }
+    }
+
+    public float GForce
+    {
+        get { return gForce; }
+    }
+
+    public bool IsReverse
+    {
+        get { return reverse; }
+    }
+
+    public float VerticalInput
+    {
+        get { return verticalInput; }
+    }
+
+    private void Awake()
+    {
+        playerInput = transform.GetComponent<PlayerInput>();
+        moveAction = playerInput.actions["Move"];
+        brakeAction = playerInput.actions["Brake"];
+        handbrakeAction = playerInput.actions["Handbrake"];
+        upShift = playerInput.actions["UpShift"];
+        downShift = playerInput.actions["DownShift"];
     }
 
     private void Start()
@@ -65,6 +118,12 @@ public class CarController : MonoBehaviour
         rb = transform.GetComponent<Rigidbody>();
         rb.centerOfMass += centerOfMassOffset;
         updateCenterOfMass = true;
+
+        //Obtain the wheelFrictionCurve
+        sidewaysFriction[0] = frontLeftCollider.sidewaysFriction;
+        sidewaysFriction[1] = frontRightCollider.sidewaysFriction;
+        sidewaysFriction[2] = rearLeftCollider.sidewaysFriction;
+        sidewaysFriction[3] = rearRightCollider.sidewaysFriction;
 
         //Obtain the position of need wheels to calculate wheelbase and wheeltrack
         Vector3 FRWheel, RRWheel, FLWheel;
@@ -78,6 +137,45 @@ public class CarController : MonoBehaviour
         //Calculate wheelbase y wheeltrack
         wheelBase = Vector3.Distance(FRWheel, RRWheel);
         wheelTrack = Vector3.Distance(FRWheel,FLWheel);
+
+        //Add the sidewaysFrictionStiffness to the wheels given the current drive setup
+        switch (driveSetup)
+        {
+            case 0:
+                for(int i = 0; i < 2; i++)
+                {
+                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                }
+                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
+                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
+                break;
+            case (DriveSetup)1:
+                for (int i = 2; i < 4; i++)
+                {
+                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                }
+                rearLeftCollider.sidewaysFriction = sidewaysFriction[2];
+                rearRightCollider.sidewaysFriction = sidewaysFriction[3];
+                break;
+            case (DriveSetup)2:
+                for (int i = 0; i < 4; i++)
+                {
+                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                }
+                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
+                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
+                rearLeftCollider.sidewaysFriction = sidewaysFriction[2];
+                rearRightCollider.sidewaysFriction = sidewaysFriction[3];
+                break;
+            default:
+                for (int i = 0; i < 2; i++)
+                {
+                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                }
+                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
+                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
+                break;
+        }
     }
 
     void OnDrawGizmos()
@@ -115,9 +213,29 @@ public class CarController : MonoBehaviour
         Gizmos.DrawLine(FRWheel, FLWheel);
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
         GetInput();
+    }
+
+    private void FixedUpdate()
+    {
+
+        Gearbox();
+
+        //Calculate Speed in KMPH
+        kmph = rb.velocity.magnitude * 3.6f;
+
+        //Calculates de G Force
+        currentVelocity = rb.velocity.magnitude;
+        gForce = (currentVelocity - lastFrameVelocity) / (Time.deltaTime * Physics.gravity.magnitude);
+        lastFrameVelocity = currentVelocity;
+
+
+        //Add the downforce to the car
+        rb.AddForce(-transform.up * downForceValue * rb.velocity.magnitude);
+
+        CalculateEnginePower();
         HandleMotor();
         HandleSteering();
         UpdateWheels();
@@ -125,20 +243,27 @@ public class CarController : MonoBehaviour
         //Calculate the Antirollforce for the antiroll bars in both axles (Front and Rear)
         AntirollBarCalculation(frontLeftCollider, frontRightCollider, frontAntirollStiffness);
         AntirollBarCalculation(rearLeftCollider, rearRightCollider, rearAntirollStiffness);
-
-        //Calculate Speed in KMPH
-        kmph = rb.velocity.magnitude * 3.6f;
-
-        motor.text = "RPM: " + rearLeftCollider.rpm;
-        brake.text = "Brake Torque R: " + rearLeftCollider.brakeTorque;
     }
 
     private void GetInput()
     {
-        horizontalInput = Input.GetAxis(HORIZONTAL);
-        verticalInput = Input.GetAxis(VERTICAL);
-        isBraking = Input.GetKey(KeyCode.Space);
-        isHandbraking = Input.GetKey(KeyCode.LeftShift);
+        Vector2 move = moveAction.ReadValue<Vector2>();
+        horizontalInput = move.x;
+        verticalInput = move.y;
+
+        isBraking = brakeAction.ReadValue<float>() == 1 ? true : false;
+        isHandbraking = handbrakeAction.ReadValue<float>() == 1 ? true : false;
+
+        if(upShift.triggered)
+        {
+            currentGear++;
+        }
+
+        if (downShift.triggered)
+        {
+            currentGear--;
+        }
+
     }
 
     private void HandleMotor()
@@ -147,25 +272,25 @@ public class CarController : MonoBehaviour
         switch(driveSetup)
         {
             case 0:
-                motorForceEachWheel = motorForce / 2;
-                frontLeftCollider.motorTorque = verticalInput * motorForce;
-                frontRightCollider.motorTorque = verticalInput * motorForce;
+                motorForceEachWheel = motorTorque / 2;
+                frontLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
+                frontRightCollider.motorTorque = motorForceEachWheel * 1.25f;
                 break;
             case (DriveSetup)1:
-                motorForceEachWheel = motorForce / 2;
-                rearLeftCollider.motorTorque = ((verticalInput * motorForce) / 3.14f) * 3.73f;
-                rearRightCollider.motorTorque = ((verticalInput * motorForce) / 3.14f) * 3.73f;
+                motorForceEachWheel = motorTorque / 2;
+                rearLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
+                rearRightCollider.motorTorque = motorForceEachWheel * 1.25f;
                 break;
             case (DriveSetup)2:
-                motorForceEachWheel = motorForce / 4;
-                frontLeftCollider.motorTorque = verticalInput * motorForce;
-                frontRightCollider.motorTorque = verticalInput * motorForce;
-                rearLeftCollider.motorTorque = verticalInput * motorForce;
-                rearRightCollider.motorTorque = verticalInput * motorForce;
+                motorForceEachWheel = motorTorque / 4;
+                frontLeftCollider.motorTorque = motorForceEachWheel * 1.5f;
+                frontRightCollider.motorTorque = motorForceEachWheel * 1.5f;
+                rearLeftCollider.motorTorque = motorForceEachWheel * 1.5f;
+                rearRightCollider.motorTorque = motorForceEachWheel * 1.5f;
                 break;
             default:
-                frontLeftCollider.motorTorque = verticalInput * motorForce;
-                frontRightCollider.motorTorque = verticalInput * motorForce;
+                frontLeftCollider.motorTorque = motorForceEachWheel;
+                frontRightCollider.motorTorque = motorForceEachWheel;
                 break;
         }
 
@@ -175,24 +300,11 @@ public class CarController : MonoBehaviour
 
     private void ApplyBreaking()
     {
-        WheelFrictionCurve forwardFriction = rearLeftCollider.forwardFriction;
-        WheelFrictionCurve sidewaysFriction = rearLeftCollider.sidewaysFriction;
-
+        
         if (isHandbraking)
         {
-            rearLeftCollider.brakeTorque = currentBrakeForce * 1000;
-            rearRightCollider.brakeTorque = currentBrakeForce * 1000;
-            
-            float stiffnessFriction = Mathf.SmoothDamp(
-                rearLeftCollider.forwardFriction.stiffness, 0.15f, ref velocity, Time.deltaTime * 1.2f);
-
-            forwardFriction.stiffness = stiffnessFriction;
-            sidewaysFriction.stiffness = stiffnessFriction;
-
-            rearLeftCollider.forwardFriction = forwardFriction;
-            rearRightCollider.forwardFriction = forwardFriction;
-            rearLeftCollider.sidewaysFriction = sidewaysFriction;
-            rearRightCollider.sidewaysFriction = sidewaysFriction;
+            rearLeftCollider.brakeTorque = currentBrakeForce * 2;
+            rearRightCollider.brakeTorque = currentBrakeForce * 2;
         }
         else
         {
@@ -200,16 +312,6 @@ public class CarController : MonoBehaviour
             frontRightCollider.brakeTorque = currentBrakeForce;
             rearLeftCollider.brakeTorque = currentBrakeForce;
             rearRightCollider.brakeTorque = currentBrakeForce;
-
-            forwardFriction.stiffness = Mathf.SmoothDamp(
-                rearLeftCollider.forwardFriction.stiffness, 0.75f, ref velocity, Time.deltaTime * 10f);
-            sidewaysFriction.stiffness = Mathf.SmoothDamp(
-                rearLeftCollider.sidewaysFriction.stiffness, 0.45f, ref velocity, Time.deltaTime * 2.5f);
-
-            rearLeftCollider.forwardFriction = forwardFriction;
-            rearRightCollider.forwardFriction = forwardFriction;
-            rearLeftCollider.sidewaysFriction = sidewaysFriction;
-            rearRightCollider.sidewaysFriction = sidewaysFriction;
         }
     }
 
@@ -237,6 +339,72 @@ public class CarController : MonoBehaviour
         UpdateSingleWheel(frontRightCollider, frontRightTransform);
         UpdateSingleWheel(rearLeftCollider, rearLeftTransform);
         UpdateSingleWheel(rearRightCollider, rearRightTransform);
+    }
+
+    private void CalculateEnginePower()
+    {
+        float wheelRPM = GetWheelRPM();
+
+        motorTorque = torqueCurve.Evaluate(engineRPM) * (gearsRatio[currentGear]) * verticalInput;
+        float velocity = 0;
+        engineRPM = Mathf.SmoothDamp(engineRPM, 800 + (Mathf.Abs(wheelRPM)) * finalDriveAxleRatio * (gearsRatio[currentGear]),ref velocity, 0.1f);
+    }
+
+    private void Gearbox()
+    {
+        switch(gearbox)
+        {
+            case 0:
+                if (!isGrounded()) return;
+                if (engineRPM > maxRPM && currentGear < gearsRatio.Length - 1 && !reverse)
+                {
+                    currentGear++;
+                }
+                if (engineRPM < minRPM && currentGear > 0)
+                {
+                    currentGear--;
+                }
+                break;
+            case (GearBox)1:
+                if (reverse)
+                {
+                    reverse = false;
+                }
+                else if (currentGear > gearsRatio.Length - 1)
+                {
+                    currentGear--;
+                }
+
+                if (currentGear < 0)
+                {
+                    reverse = true;
+                    currentGear++;
+                }
+
+                break;
+        }
+    }
+
+    private float GetWheelRPM()
+    {
+        float sum = 0;
+
+        sum += frontLeftCollider.rpm;
+        sum += frontRightCollider.rpm;
+        sum += rearLeftCollider.rpm;
+        sum += rearRightCollider.rpm;
+
+        if (sum < 0 && !reverse)
+        {
+            reverse = true;
+            currentGear = 0;
+        }
+        else if (sum > 0 && reverse)
+        {
+            reverse = false;
+        }
+
+        return sum / 4;
     }
 
     private void UpdateSingleWheel(WheelCollider _wheelCollider, Transform _wheelTransform)
@@ -269,5 +437,17 @@ public class CarController : MonoBehaviour
             rb.AddForceAtPosition(_leftWheel.transform.up * -antiRollForce, _leftWheel.transform.position);
         if (groundedR)
             rb.AddForceAtPosition(_rightWheel.transform.up * antiRollForce, _rightWheel.transform.position);
+    }
+
+    public bool isGrounded()
+    {
+        if(frontLeftCollider.isGrounded && frontRightCollider.isGrounded && rearLeftCollider.isGrounded && rearRightCollider)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 }
