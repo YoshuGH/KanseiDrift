@@ -26,7 +26,6 @@ public class CarController : MonoBehaviour
     private bool disableControls = false;
 
     private Rigidbody rb = new Rigidbody();
-    [SerializeField] private Collider colDectector;
     private PlayerInput playerInput;
     private InputAction moveAction, brakeAction, handbrakeAction, upShift, downShift;
     private WheelFrictionCurve[] sidewaysFriction = new WheelFrictionCurve[4];
@@ -132,12 +131,6 @@ public class CarController : MonoBehaviour
         rb.centerOfMass += centerOfMassOffset;
         updateCenterOfMass = true;
 
-        //Obtain the wheelFrictionCurve
-        sidewaysFriction[0] = frontLeftCollider.sidewaysFriction;
-        sidewaysFriction[1] = frontRightCollider.sidewaysFriction;
-        sidewaysFriction[2] = rearLeftCollider.sidewaysFriction;
-        sidewaysFriction[3] = rearRightCollider.sidewaysFriction;
-
         //Obtain the position of need wheels to calculate wheelbase and wheeltrack
         Vector3 FRWheel, RRWheel, FLWheel;
         frontRightCollider.GetWorldPose(out pos, out quat);
@@ -149,7 +142,13 @@ public class CarController : MonoBehaviour
 
         //Calculate wheelbase y wheeltrack
         wheelBase = Vector3.Distance(FRWheel, RRWheel);
-        wheelTrack = Vector3.Distance(FRWheel,FLWheel);
+        wheelTrack = Vector3.Distance(FRWheel, FLWheel);
+
+        //Obtain the wheelFrictionCurve
+        sidewaysFriction[0] = frontLeftCollider.sidewaysFriction;
+        sidewaysFriction[1] = frontRightCollider.sidewaysFriction;
+        sidewaysFriction[2] = rearLeftCollider.sidewaysFriction;
+        sidewaysFriction[3] = rearRightCollider.sidewaysFriction;
 
         //Add the sidewaysFrictionStiffness to the wheels given the current drive setup
         switch (driveSetup)
@@ -330,8 +329,8 @@ public class CarController : MonoBehaviour
         
         if (isHandbraking)
         {
-            rearLeftCollider.brakeTorque = currentBrakeForce * 2;
-            rearRightCollider.brakeTorque = currentBrakeForce * 2;
+            rearLeftCollider.brakeTorque = currentBrakeForce * 2.5f;
+            rearRightCollider.brakeTorque = currentBrakeForce * 2.5f;
         }
         else
         {
