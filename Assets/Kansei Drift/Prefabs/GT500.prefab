@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 1252709724}
   m_Layer: 0
   m_Name: FocusPoint
-  m_TagString: Untagged
+  m_TagString: FocusPoint
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -208,53 +208,97 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aad3f500cbb54194caa66129d48c015e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colDectector: {fileID: 0}
   driveSetup: 1
-  motorTorque: 0
   torqueCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 330
-      inSlope: 0.07880015
-      outSlope: 0.07880015
+      value: 380
+      inSlope: 0.1358391
+      outSlope: 0.1358391
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.052364655
+      outWeight: 0.117582075
     - serializedVersion: 3
-      time: 1010.16956
-      value: 553.11835
-      inSlope: 0.021670667
-      outSlope: 0.021670667
+      time: 2000
+      value: 664.4
+      inSlope: 0.12814873
+      outSlope: 0.12814873
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0.09023871
+      inWeight: 0.13487427
+      outWeight: 0.34567505
+    - serializedVersion: 3
+      time: 3000
+      value: 772.8
+      inSlope: 0.044905864
+      outSlope: 0.022233283
+      tangentMode: 1
+      weightedMode: 0
+      inWeight: 0.50585693
+      outWeight: 0.33229735
+    - serializedVersion: 3
+      time: 4000
+      value: 817.6
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.4455481
       outWeight: 0.33333334
     - serializedVersion: 3
       time: 5000
-      value: 625
-      inSlope: 0.033610623
-      outSlope: 0.033610623
-      tangentMode: 0
+      value: 759.3
+      inSlope: -0.06462754
+      outSlope: -0.050886203
+      tangentMode: 1
       weightedMode: 0
-      inWeight: 0.26211363
-      outWeight: 0
+      inWeight: 0.3413169
+      outWeight: 0.4166113
     - serializedVersion: 3
-      time: 5500
-      value: 0
-      inSlope: -1.9951208
-      outSlope: -1.9951208
+      time: 6000
+      value: 677.6
+      inSlope: -0.045979965
+      outSlope: -0.07303517
+      tangentMode: 1
+      weightedMode: 0
+      inWeight: 0.40043896
+      outWeight: 0.3651947
+    - serializedVersion: 3
+      time: 6800
+      value: 583
+      inSlope: -0.16445953
+      outSlope: -0.16445953
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0.044493165
+      inWeight: 0.33333334
+      outWeight: 1
+    - serializedVersion: 3
+      time: 6990
+      value: 544.7901
+      inSlope: -0.20951927
+      outSlope: -0.20951927
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.85189915
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 7000
+      value: 0
+      inSlope: -54.47901
+      outSlope: -54.47901
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  gearbox: 1
-  maxRPM: 5300
+  brakeForce: 450
+  gearboxType: 1
+  maxRPM: 6800
   minRPM: 2500
   gearsRatio:
   - 3.14
@@ -265,21 +309,24 @@ MonoBehaviour:
   - 0.68
   - 0.56
   finalDriveAxleRatio: 3.74
-  brakeForce: 450
+  reverseGearRatio: 2.76
   maxSteeringAngle: 30
-  sidewaysFrictionStiffness: 0.775
+  ackermanRadius: 6
+  sidewaysFrictionStiffness: 0.65
   frontAntirollStiffness: 5000
   rearAntirollStiffness: 5000
-  centerOfMassOffset: {x: 0, y: -0.15, z: 0.35}
+  centerOfMassOffset: {x: 0, y: -0.28, z: 0.48}
   downForceValue: 200
-  frontLeftCollider: {fileID: 4897181084613102659}
-  frontRightCollider: {fileID: 4897181085670069737}
-  rearLeftCollider: {fileID: 4897181084605287198}
-  rearRightCollider: {fileID: 4897181085838250416}
-  frontLeftTransform: {fileID: 3568965439782492893}
-  frontRightTransform: {fileID: 3568965439782492895}
-  rearLeftTransform: {fileID: 3568965439782492885}
-  rearRightTransform: {fileID: 3568965439782492887}
+  wheelColliders:
+  - {fileID: 4897181084613102659}
+  - {fileID: 4897181085670069737}
+  - {fileID: 4897181084605287198}
+  - {fileID: 4897181085838250416}
+  wheelTransforms:
+  - {fileID: 3568965439782492893}
+  - {fileID: 3568965439782492895}
+  - {fileID: 3568965439782492885}
+  - {fileID: 3568965439782492887}
 --- !u!114 &2688757491253100856
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -287,7 +334,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3568965439782782705}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 27c6224bcfb7feb4aa59e76b6d855f94, type: 3}
   m_Name: 
@@ -433,7 +480,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3568965439782782705}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f8b60ed4d666df4195322888b62ef67, type: 3}
   m_Name: 
@@ -1075,12 +1122,12 @@ WheelCollider:
     m_ExtremumValue: 1
     m_AsymptoteSlip: 0.8
     m_AsymptoteValue: 0.8
-    m_Stiffness: 1
+    m_Stiffness: 0.95
   m_SidewaysFriction:
-    m_ExtremumSlip: 0.08
-    m_ExtremumValue: 0.8
-    m_AsymptoteSlip: 0.6
-    m_AsymptoteValue: 0.65
+    m_ExtremumSlip: 0.2
+    m_ExtremumValue: 1
+    m_AsymptoteSlip: 0.8
+    m_AsymptoteValue: 0.8
     m_Stiffness: 1
   m_Enabled: 1
 --- !u!1 &4897181084613102661
@@ -1136,13 +1183,13 @@ WheelCollider:
     m_ExtremumValue: 1
     m_AsymptoteSlip: 0.8
     m_AsymptoteValue: 0.8
-    m_Stiffness: 1
+    m_Stiffness: 0.9
   m_SidewaysFriction:
-    m_ExtremumSlip: 0.08
-    m_ExtremumValue: 0.8
-    m_AsymptoteSlip: 0.6
-    m_AsymptoteValue: 0.65
-    m_Stiffness: 1
+    m_ExtremumSlip: 0.2
+    m_ExtremumValue: 1
+    m_AsymptoteSlip: 0.8
+    m_AsymptoteValue: 0.8
+    m_Stiffness: 0.75
   m_Enabled: 1
 --- !u!1 &4897181084987445468
 GameObject:
@@ -1334,13 +1381,13 @@ WheelCollider:
     m_ExtremumValue: 1
     m_AsymptoteSlip: 0.8
     m_AsymptoteValue: 0.8
-    m_Stiffness: 1
+    m_Stiffness: 0.9
   m_SidewaysFriction:
-    m_ExtremumSlip: 0.08
-    m_ExtremumValue: 0.8
-    m_AsymptoteSlip: 0.6
-    m_AsymptoteValue: 0.65
-    m_Stiffness: 1
+    m_ExtremumSlip: 0.2
+    m_ExtremumValue: 1
+    m_AsymptoteSlip: 0.8
+    m_AsymptoteValue: 0.8
+    m_Stiffness: 0.75
   m_Enabled: 1
 --- !u!1 &4897181085838250418
 GameObject:
@@ -1395,12 +1442,12 @@ WheelCollider:
     m_ExtremumValue: 1
     m_AsymptoteSlip: 0.8
     m_AsymptoteValue: 0.8
-    m_Stiffness: 1
+    m_Stiffness: 0.95
   m_SidewaysFriction:
-    m_ExtremumSlip: 0.08
-    m_ExtremumValue: 0.8
-    m_AsymptoteSlip: 0.6
-    m_AsymptoteValue: 0.65
+    m_ExtremumSlip: 0.2
+    m_ExtremumValue: 1
+    m_AsymptoteSlip: 0.8
+    m_AsymptoteValue: 0.8
     m_Stiffness: 1
   m_Enabled: 1
 --- !u!1 &4897181086135590372

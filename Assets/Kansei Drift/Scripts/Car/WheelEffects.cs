@@ -21,6 +21,8 @@ public class WheelEffects : MonoBehaviour
     private void Awake()
     {
         controller = transform.GetComponent<CarController>();
+        wheelTranforms = new Transform[controller.WheelTransforms.Length];
+        wheelColliders = new WheelCollider[controller.WheelColliders.Length];
         tireAudioSource = transform.GetComponent<AudioSource>();
         smokes = new GameObject[wheelTranforms.Length];
         smokeParticles = new ParticleSystem[wheelTranforms.Length];
@@ -31,15 +33,15 @@ public class WheelEffects : MonoBehaviour
 
     private void Start()
     {
-        wheelColliders[0] = controller.frontLeftCollider;
-        wheelColliders[1] = controller.frontRightCollider;
-        wheelColliders[2] = controller.rearLeftCollider;
-        wheelColliders[3] = controller.rearRightCollider;
+        for(int i = 0; i < wheelColliders.Length; i++)
+        {
+            wheelColliders[i] = controller.WheelColliders[i];
+        }
 
-        wheelTranforms[0] = controller.frontLeftTransform;
-        wheelTranforms[1] = controller.frontRightTransform;
-        wheelTranforms[2] = controller.rearLeftTransform;
-        wheelTranforms[3] = controller.rearRightTransform;
+        for (int i = 0; i < wheelColliders.Length; i++)
+        {
+            wheelTranforms[i] = controller.WheelTransforms[i];
+        }
 
         for (int i = 0; i < 4; i++)
         {

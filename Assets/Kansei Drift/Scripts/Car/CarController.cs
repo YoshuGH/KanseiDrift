@@ -7,11 +7,10 @@ using UnityEngine.UI;
 
 public class CarController : MonoBehaviour
 {
-    private const string HORIZONTAL = "Horizontal";
-    private const string VERTICAL = "Vertical";
+    #region Private Variables
+
     private float horizontalInput;
     private float verticalInput;
-    private bool isBraking, isHandbraking, updateCenterOfMass = false, reverse = false;
     private float currentBrakeForce;
     private float currentSteerAngle;
     private float wheelBase = 2.55f;
@@ -22,28 +21,35 @@ public class CarController : MonoBehaviour
     private float gForce = 0;
     private float currentVelocity;
     private float lastFrameVelocity;
+    private float motorTorque;
+    [SerializeField]private float ackermanRadius;
     private int colIterator, checkpoints;
     private bool disableControls = false;
+    private bool isBraking, isHandbraking, updateCenterOfMass = false, reverse = false;
 
     private Rigidbody rb = new Rigidbody();
     private PlayerInput playerInput;
     private InputAction moveAction, brakeAction, handbrakeAction, upShift, downShift;
-    private WheelFrictionCurve[] sidewaysFriction = new WheelFrictionCurve[4];
+    private WheelFrictionCurve[] sidewaysFriction;
 
     private enum DriveSetup { FWD, RWD, AWD }
     private enum GearBox { automatic, manual }
 
+    #endregion
+
+    #region Inpector Variables
+
     [Header("Car Setup"),Space]
     [SerializeField] private DriveSetup driveSetup;
-    [SerializeField, Tooltip("The Value is express in N/m")] 
-    private float motorTorque;
     [SerializeField] private AnimationCurve torqueCurve;
-    [SerializeField] GearBox gearbox;
-    [SerializeField] private float maxRPM = 5500, minRPM = 2500;
-    [SerializeField] private float[] gearsRatio;
-    [SerializeField] private float finalDriveAxleRatio = 3.74f;
-    [SerializeField, Tooltip("The Value is express in N/m")] 
+    [SerializeField, Tooltip("The Value is express in N/m")]
     private float brakeForce;
+    [SerializeField] GearBox gearboxType;
+    [SerializeField, Tooltip("This only applys to automatic gearbox")] 
+    private float maxRPM = 5500, minRPM = 2500;
+    [SerializeField] private float[] gearsRatio;
+    [SerializeField] private float finalDriveAxleRatio = 3.73f;
+    [SerializeField] private float reverseGearRatio = 2.76f;
     [SerializeField] private float maxSteeringAngle;
     [SerializeField] private float sidewaysFrictionStiffness = 0.775f;
     [SerializeField, Tooltip("The Value is express in N/m")] 
@@ -53,19 +59,20 @@ public class CarController : MonoBehaviour
     [SerializeField, Tooltip("Is for relocate the center of mass relative to the original")] 
     private Vector3 centerOfMassOffset;
     [SerializeField] private float downForceValue = 50f;
+    [Header("Miscellaneous")]
+    [SerializeField, Space, Space] private float steerAngleSmoothTime;
 
     [Header("Wheel Colliders")]
-    [SerializeField, Space, Space] public WheelCollider frontLeftCollider;
-    [SerializeField] public WheelCollider frontRightCollider;
-    [SerializeField] public WheelCollider rearLeftCollider;
-    [SerializeField] public WheelCollider rearRightCollider;
+    [SerializeField, Space, Space, Tooltip("The order of the wheel colliders must be equal to the wheel transforms")] 
+    private WheelCollider[] wheelColliders;
 
     [Header("Wheel Transform Models")]
-    [SerializeField, Space, Space] public Transform frontLeftTransform;
-    [SerializeField] public Transform frontRightTransform;
-    [SerializeField] public Transform rearLeftTransform;
-    [SerializeField] public Transform rearRightTransform;
+    [SerializeField, Space, Space, Tooltip("The order of the wheel transforms must be equal to the wheel colliders")] 
+    private Transform[] wheelTransforms;
 
+    #endregion
+
+    #region Accesors
     public float KMPH
     {
         get { return kmph; }
@@ -111,6 +118,18 @@ public class CarController : MonoBehaviour
         get { return checkpoints; }
     }
 
+    public WheelCollider[] WheelColliders
+    {
+        get { return wheelColliders; }
+    }
+
+    public Transform[] WheelTransforms
+    {
+        get { return wheelTransforms; }
+    }
+
+    #endregion
+
     private void Awake()
     {
         playerInput = transform.GetComponent<PlayerInput>();
@@ -119,6 +138,7 @@ public class CarController : MonoBehaviour
         handbrakeAction = playerInput.actions["Handbrake"];
         upShift = playerInput.actions["UpShift"];
         downShift = playerInput.actions["DownShift"];
+        sidewaysFriction = new WheelFrictionCurve[wheelColliders.Length];
     }
 
     private void Start()
@@ -133,11 +153,11 @@ public class CarController : MonoBehaviour
 
         //Obtain the position of need wheels to calculate wheelbase and wheeltrack
         Vector3 FRWheel, RRWheel, FLWheel;
-        frontRightCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[0].GetWorldPose(out pos, out quat);
         FRWheel = pos;
-        rearRightCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[2].GetWorldPose(out pos, out quat);
         RRWheel = pos;
-        frontLeftCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[1].GetWorldPose(out pos, out quat);
         FLWheel = pos;
 
         //Calculate wheelbase y wheeltrack
@@ -145,47 +165,49 @@ public class CarController : MonoBehaviour
         wheelTrack = Vector3.Distance(FRWheel, FLWheel);
 
         //Obtain the wheelFrictionCurve
-        sidewaysFriction[0] = frontLeftCollider.sidewaysFriction;
-        sidewaysFriction[1] = frontRightCollider.sidewaysFriction;
-        sidewaysFriction[2] = rearLeftCollider.sidewaysFriction;
-        sidewaysFriction[3] = rearRightCollider.sidewaysFriction;
+        for(int i = 0; i<wheelColliders.Length; i++)
+        {
+            sidewaysFriction[i] = wheelColliders[0].sidewaysFriction;
+        }
+
+        ackermanRadius = maxSteeringAngle * 0.15f;
 
         //Add the sidewaysFrictionStiffness to the wheels given the current drive setup
         switch (driveSetup)
         {
-            case 0:
-                for(int i = 0; i < 2; i++)
+            case DriveSetup.FWD:
+                for(int i = 0; i < wheelColliders.Length; i++)
                 {
-                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                    if(i < 2)
+                    {
+                        sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                        wheelColliders[i].sidewaysFriction = sidewaysFriction[i];
+                    }
                 }
-                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
-                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
                 break;
             case (DriveSetup)1:
-                for (int i = 2; i < 4; i++)
+                for (int i = 2; i < wheelColliders.Length; i++)
                 {
                     sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                    wheelColliders[i].sidewaysFriction = sidewaysFriction[i];
                 }
-                rearLeftCollider.sidewaysFriction = sidewaysFriction[2];
-                rearRightCollider.sidewaysFriction = sidewaysFriction[3];
                 break;
-            case (DriveSetup)2:
-                for (int i = 0; i < 4; i++)
+            case DriveSetup.AWD:
+                for (int i = 0; i < wheelColliders.Length; i++)
                 {
                     sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                    wheelColliders[i].sidewaysFriction = sidewaysFriction[i];
                 }
-                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
-                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
-                rearLeftCollider.sidewaysFriction = sidewaysFriction[2];
-                rearRightCollider.sidewaysFriction = sidewaysFriction[3];
                 break;
             default:
-                for (int i = 0; i < 2; i++)
+                for (int i = 0; i < wheelColliders.Length; i++)
                 {
-                    sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                    if (i < 2)
+                    {
+                        sidewaysFriction[i].stiffness = sidewaysFrictionStiffness;
+                        wheelColliders[i].sidewaysFriction = sidewaysFriction[i];
+                    }
                 }
-                frontLeftCollider.sidewaysFriction = sidewaysFriction[0];
-                frontRightCollider.sidewaysFriction = sidewaysFriction[1];
                 break;
         }
     }
@@ -209,11 +231,11 @@ public class CarController : MonoBehaviour
         Gizmos.DrawSphere(centerOfMassPos, 0.1f);
 
         Vector3 FRWheel, RRWheel, FLWheel;
-        frontRightCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[1].GetWorldPose(out pos, out quat);
         FRWheel = pos;
-        rearRightCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[3].GetWorldPose(out pos, out quat);
         RRWheel = pos;
-        frontLeftCollider.GetWorldPose(out pos, out quat);
+        wheelColliders[0].GetWorldPose(out pos, out quat);
         FLWheel = pos;
 
         //Wheelbase
@@ -265,8 +287,8 @@ public class CarController : MonoBehaviour
         UpdateWheels();
 
         //Calculate the Antirollforce for the antiroll bars in both axles (Front and Rear)
-        AntirollBarCalculation(frontLeftCollider, frontRightCollider, frontAntirollStiffness);
-        AntirollBarCalculation(rearLeftCollider, rearRightCollider, rearAntirollStiffness);
+        AntirollBarCalculation(wheelColliders[0], wheelColliders[1], frontAntirollStiffness);
+        AntirollBarCalculation(wheelColliders[2], wheelColliders[3], rearAntirollStiffness);
     }
 
     private void GetInput()
@@ -299,27 +321,39 @@ public class CarController : MonoBehaviour
         {
             case 0:
                 motorForceEachWheel = motorTorque / 2;
-                frontLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
-                frontRightCollider.motorTorque = motorForceEachWheel * 1.25f;
+                for (int i = 0; i < wheelColliders.Length; i++)
+                {
+                    if (i < 2)
+                    {
+                        wheelColliders[i].motorTorque = motorForceEachWheel;
+                    }
+                }
                 break;
-            case (DriveSetup)1:
+            case DriveSetup.RWD:
                 motorForceEachWheel = motorTorque / 2;
-                rearLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
-                rearRightCollider.motorTorque = motorForceEachWheel * 1.25f;
+                for (int i = 2; i < wheelColliders.Length; i++)
+                {
+                    wheelColliders[i].motorTorque = motorForceEachWheel;
+                }
                 break;
             case (DriveSetup)2:
                 motorForceEachWheel = motorTorque / 4;
-                frontLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
-                frontRightCollider.motorTorque = motorForceEachWheel * 1.25f;
-                rearLeftCollider.motorTorque = motorForceEachWheel * 1.25f;
-                rearRightCollider.motorTorque = motorForceEachWheel * 1.25f;
+                for (int i = 0; i < wheelColliders.Length; i++)
+                {
+                    wheelColliders[i].motorTorque = motorForceEachWheel;
+                }
                 break;
             default:
-                frontLeftCollider.motorTorque = motorForceEachWheel;
-                frontRightCollider.motorTorque = motorForceEachWheel;
+                motorForceEachWheel = motorTorque / 2;
+                for (int i = 0; i < wheelColliders.Length; i++)
+                {
+                    if (i < 2)
+                    {
+                        wheelColliders[i].motorTorque = motorForceEachWheel;
+                    }
+                }
                 break;
         }
-
         currentBrakeForce = isBraking || isHandbraking ? brakeForce : 0f;
         ApplyBreaking();
     }
@@ -329,42 +363,71 @@ public class CarController : MonoBehaviour
         
         if (isHandbraking)
         {
-            rearLeftCollider.brakeTorque = currentBrakeForce * 2.5f;
-            rearRightCollider.brakeTorque = currentBrakeForce * 2.5f;
+            for (int i = 2; i < wheelColliders.Length; i++)
+            {
+                wheelColliders[i].brakeTorque = currentBrakeForce * 3;
+            }
         }
         else
         {
-            frontLeftCollider.brakeTorque = currentBrakeForce;
-            frontRightCollider.brakeTorque = currentBrakeForce;
-            rearLeftCollider.brakeTorque = currentBrakeForce;
-            rearRightCollider.brakeTorque = currentBrakeForce;
+            for (int i = 0; i < wheelColliders.Length; i++)
+            {
+                wheelColliders[i].brakeTorque = currentBrakeForce;
+            }
         }
     }
 
     private void HandleSteering()
     {
+        float ackermanAngle = 0, clampAckermanangle = 0, velocity = 0;
         //Ackerman Steering formula
         //steer angle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (wheelRadius + (wheelTrack / 2))) * InputDirection
-        if (horizontalInput > 0 || horizontalInput < 0)
+        if (horizontalInput > 0)
         {
-            currentSteerAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (frontLeftCollider.radius + (wheelTrack / 2))) * horizontalInput;
-            frontLeftCollider.steerAngle = Mathf.Clamp(currentSteerAngle, -maxSteeringAngle, maxSteeringAngle);
-            currentSteerAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (frontRightCollider.radius + (wheelTrack / 2))) * horizontalInput;
-            frontRightCollider.steerAngle = Mathf.Clamp(currentSteerAngle, -maxSteeringAngle, maxSteeringAngle);
+            //Left wheel
+            currentSteerAngle = wheelColliders[0].steerAngle;
+            ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius + (wheelTrack / 2))) * horizontalInput;
+            clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
+            wheelColliders[0].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+            print(wheelColliders[0].steerAngle);
+
+            //Right Wheel
+            currentSteerAngle = wheelColliders[1].steerAngle;
+            ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius - (wheelTrack / 2))) * horizontalInput;
+            clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
+            wheelColliders[1].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+        }
+        else if (horizontalInput < 0)
+        {
+            //Left wheel
+            currentSteerAngle = wheelColliders[0].steerAngle;
+            ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius - (wheelTrack / 2))) * horizontalInput;
+            clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
+            wheelColliders[0].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+
+            //Right Wheel
+            currentSteerAngle = wheelColliders[1].steerAngle;
+            ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius + (wheelTrack / 2))) * horizontalInput;
+            clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
+            wheelColliders[1].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+            print(wheelColliders[1].steerAngle);
         }
         else
         {
-            frontLeftCollider.steerAngle = 0;
-            frontRightCollider.steerAngle = 0;
+            currentSteerAngle = wheelColliders[0].steerAngle;
+            wheelColliders[0].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, 0, ref velocity, steerAngleSmoothTime);
+            currentSteerAngle = wheelColliders[1].steerAngle;
+            wheelColliders[1].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, 0, ref velocity, steerAngleSmoothTime);
+            currentSteerAngle = 0;
         }
     }
 
     private void UpdateWheels()
     {
-        UpdateSingleWheel(frontLeftCollider, frontLeftTransform);
-        UpdateSingleWheel(frontRightCollider, frontRightTransform);
-        UpdateSingleWheel(rearLeftCollider, rearLeftTransform);
-        UpdateSingleWheel(rearRightCollider, rearRightTransform);
+        for(int i = 0; i < wheelColliders.Length; i++)
+        {
+            UpdateSingleWheel(wheelColliders[i], wheelTransforms[i]);
+        }
     }
 
     private void CalculateEnginePower()
@@ -378,9 +441,9 @@ public class CarController : MonoBehaviour
 
     private void Gearbox()
     {
-        switch(gearbox)
+        switch(gearboxType)
         {
-            case 0:
+            case GearBox.automatic:
                 if (!isGrounded()) return;
                 if (engineRPM > maxRPM && currentGear < gearsRatio.Length - 1 && !reverse)
                 {
@@ -391,7 +454,7 @@ public class CarController : MonoBehaviour
                     currentGear--;
                 }
                 break;
-            case (GearBox)1:
+            case GearBox.manual:
                 if (reverse)
                 {
                     reverse = false;
@@ -415,10 +478,10 @@ public class CarController : MonoBehaviour
     {
         float sum = 0;
 
-        sum += frontLeftCollider.rpm;
-        sum += frontRightCollider.rpm;
-        sum += rearLeftCollider.rpm;
-        sum += rearRightCollider.rpm;
+        for(int i = 0; i < wheelColliders.Length; i++)
+        {
+            sum += wheelColliders[i].rpm;
+        }
 
         if (sum < 0 && !reverse)
         {
@@ -429,7 +492,6 @@ public class CarController : MonoBehaviour
         {
             reverse = false;
         }
-
         return sum / 4;
     }
 
@@ -467,7 +529,7 @@ public class CarController : MonoBehaviour
 
     public bool isGrounded()
     {
-        if(frontLeftCollider.isGrounded && frontRightCollider.isGrounded && rearLeftCollider.isGrounded && rearRightCollider)
+        if(wheelColliders[0].isGrounded && wheelColliders[1].isGrounded && wheelColliders[2].isGrounded && wheelColliders[3].isGrounded)
         {
             return true;
         }

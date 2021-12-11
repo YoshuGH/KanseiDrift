@@ -23,6 +23,7 @@ public class CameraController : MonoBehaviour
         cameraPos[1] = new Vector2(7.5f, 0.5f);
         cameraPos[2] = new Vector2(8.9f, 1.2f);
         atachedVehicle = GameObject.FindGameObjectWithTag("Player");
+        focusPoint = GameObject.FindGameObjectWithTag("FocusPoint");
         target = focusPoint.transform;
         controllerRef = atachedVehicle.GetComponent<CarController>();
     }
