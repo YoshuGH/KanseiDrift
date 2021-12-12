@@ -22,7 +22,7 @@ public class CarController : MonoBehaviour
     private float currentVelocity;
     private float lastFrameVelocity;
     private float motorTorque;
-    [SerializeField]private float ackermanRadius;
+    private float ackermanRadius;
     private int colIterator, checkpoints;
     private bool disableControls = false;
     private bool isBraking, isHandbraking, updateCenterOfMass = false, reverse = false;
@@ -170,7 +170,9 @@ public class CarController : MonoBehaviour
             sidewaysFriction[i] = wheelColliders[0].sidewaysFriction;
         }
 
-        ackermanRadius = maxSteeringAngle * 0.15f;
+        //Calculate the ackerman radius given a max angle
+        float rad = maxSteeringAngle * Mathf.PI / 180;
+        ackermanRadius = (wheelBase / (Mathf.Tan(rad))) + (wheelTrack / 2);
 
         //Add the sidewaysFrictionStiffness to the wheels given the current drive setup
         switch (driveSetup)
@@ -389,13 +391,14 @@ public class CarController : MonoBehaviour
             ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius + (wheelTrack / 2))) * horizontalInput;
             clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
             wheelColliders[0].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
-            print(wheelColliders[0].steerAngle);
+            //print("Left: " + wheelColliders[0].steerAngle);
 
             //Right Wheel
             currentSteerAngle = wheelColliders[1].steerAngle;
             ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius - (wheelTrack / 2))) * horizontalInput;
             clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
             wheelColliders[1].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+            //print("Right: " + wheelColliders[1].steerAngle);
         }
         else if (horizontalInput < 0)
         {
@@ -404,13 +407,14 @@ public class CarController : MonoBehaviour
             ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius - (wheelTrack / 2))) * horizontalInput;
             clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
             wheelColliders[0].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
+            //print("Left: " + wheelColliders[0].steerAngle);
 
             //Right Wheel
             currentSteerAngle = wheelColliders[1].steerAngle;
             ackermanAngle = Mathf.Rad2Deg * Mathf.Atan(wheelBase / (ackermanRadius + (wheelTrack / 2))) * horizontalInput;
             clampAckermanangle = Mathf.Clamp(ackermanAngle, -maxSteeringAngle, maxSteeringAngle);
             wheelColliders[1].steerAngle = Mathf.SmoothDampAngle(currentSteerAngle, clampAckermanangle, ref velocity, steerAngleSmoothTime);
-            print(wheelColliders[1].steerAngle);
+            //print("Right: " + wheelColliders[1].steerAngle);
         }
         else
         {

@@ -388,15 +388,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: ackermanRadius
-      value: 4.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: maxSteeringAngle
-      value: 30
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: steerAngleSmoothTime
       value: 0.065
+      objectReference: {fileID: 0}
+    - target: {fileID: 3568965439782782714, guid: 7765eb916431c884495dc22793da73b1, type: 3}
+      propertyPath: sidewaysFrictionStiffness
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4462346698686610240, guid: 7765eb916431c884495dc22793da73b1, type: 3}
       propertyPath: m_UIInputModule
